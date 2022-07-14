@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:cp22_health_app/audio_player.dart';
 import 'package:flutter/material.dart';
 
 class Bubble extends StatefulWidget {
@@ -12,36 +15,50 @@ class BubbleState extends State<Bubble> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _marginAnimation;
 
+
+  final _breathSound = AudioAssetPlayer('Breath.mp3');
+  late final StreamSubscription progressSubscription;
+  late final StreamSubscription stateSubscription;
+
+  double progress = 0.0;
+  PlayerState state = PlayerState.STOPPED;
+  late final Future initFuture;
+
   @override
   void initState() {
     super.initState();
-
+    initFuture = _breathSound.init().then((_) {
+      progressSubscription = _breathSound.progressStream
+          .listen((p) => setState(() => progress = p));
+      stateSubscription =
+          _breathSound.stateStream.listen((s) => setState(() => state = s));
+    });
     _controller =
         AnimationController(vsync: this, duration: const Duration(seconds: 10));
 
     _marginAnimation = TweenSequence(<TweenSequenceItem<double>>[
       TweenSequenceItem(
-        // inhale 1
+          // inhale 1
           tween: Tween<double>(begin: 100, end: 40),
           weight: 1.5),
       TweenSequenceItem(
-        // stop
+          // stop
           tween: Tween<double>(begin: 40, end: 40),
           weight: 1),
       TweenSequenceItem(
-        // inhale 2
+          // inhale 2
           tween: Tween<double>(begin: 40, end: 30),
           weight: 1),
       TweenSequenceItem(
-        // stop
+          // stop
           tween: Tween<double>(begin: 30, end: 30),
           weight: 1),
       TweenSequenceItem(
-        // exhale
+          // exhale
           tween: Tween<double>(begin: 30, end: 100),
           weight: 6),
       TweenSequenceItem(
-        // stop
+          // stop
           tween: Tween<double>(begin: 100, end: 100),
           weight: 1.5),
     ]).animate(_controller);
@@ -51,6 +68,7 @@ class BubbleState extends State<Bubble> with SingleTickerProviderStateMixin {
   void dispose() {
     super.dispose();
     _controller.dispose();
+    _breathSound.dispose();
   }
 
   Future<void> _playAnimation() async {
@@ -71,12 +89,12 @@ class BubbleState extends State<Bubble> with SingleTickerProviderStateMixin {
               height: 450,
               child: Center(
                 child: Container(
-                  padding: EdgeInsets.all(10.0),
-                  child: Text(
-                    '\nHướng dẫn: hít vào một hơi thật nhanh và mạnh, hít thêm một hơi nữa khi bong bóng nở ra, rồi thở ra từ từ khi bong bóng thu nhỏ lại\n'
+                  padding: const EdgeInsets.all(10.0),
+                  child: const Text(
+                    '\n- Hướng dẫn: hít vào một hơi thật nhanh và mạnh, hít thêm một hơi nữa khi bong bóng nở ra, rồi thở ra từ từ khi bong bóng thu nhỏ lại\n'
                     '\n- Phù hợp thực hành trong những tình huống bạn bị mất bình tĩnh: chuẩn bị thi, chuẩn bị đánh nhau, khủng hoảng hiện sinh...\n'
                     ' \n-Tác dụng: khiến phổi bạn nở ra và nhịp tim chậm lại, giúp bạn bình tĩnh và cân bằng cảm xúc ngay lúc thở \n\n',
-                  // ' -Nguồn khoa học: https://scopeblog.stanford.edu/2020/10/07/how-stress-affects-your-brain-and-how-to-reverse-it/',
+                    // ' -Nguồn khoa học: https://scopeblog.stanford.edu/2020/10/07/how-stress-affects-your-brain-and-how-to-reverse-it/',
                     softWrap: true,
                     style: TextStyle(
                       fontSize: 19,
@@ -97,10 +115,33 @@ class BubbleState extends State<Bubble> with SingleTickerProviderStateMixin {
           return Scaffold(
             body: Column(
               children: <Widget>[
+                Row(
+                  // mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    FloatingActionButton(
+                      onPressed: () {},
+                      child: Image.asset(
+                        'assets/listening.png',
+                        height: 30,
+                        width: 30,
+                      ),
+                    ),
+                    const Flexible(
+                        fit: FlexFit.tight,
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                        )),
+                    const PlayButton(),
+                  ],
+                ),
                 CircleBox(marginAnimation: _marginAnimation),
                 ElevatedButton(
                     onPressed: () {
                       _playAnimation();
+                      state == PlayerState.PLAYING
+                          ? _breathSound.pause()
+                          : _breathSound.play();
                     },
                     child: const Text('Bắt đầu'))
               ],
@@ -132,16 +173,62 @@ class CircleBox extends StatelessWidget {
         alignment: const Alignment(0, 1),
         child: SizedBox(
           width: 350,
-          height: 400,
+          height: 300,
           child: Container(
-          // color: Colors.blue,   // uncomment to see container
+            // color: Colors.blue,   // uncomment to see container
             margin: EdgeInsets.all(_marginAnimation.value),
             decoration: const BoxDecoration(
               color: Colors.pinkAccent,
               shape: BoxShape.circle,
             ),
           ),
-        )
-    );
+        ));
+  }
+}
+
+class PlayButton extends StatefulWidget {
+  const PlayButton({Key? key}) : super(key: key);
+  @override
+  _PlayButtonState createState() => _PlayButtonState();
+}
+
+class _PlayButtonState extends State<PlayButton> {
+  final _backgroundMusic = AudioAssetPlayer('QuanComNgayMua.mp3');
+  late final StreamSubscription progressSubscription;
+  late final StreamSubscription stateSubscription;
+
+  double progress = 0.0;
+  PlayerState state = PlayerState.STOPPED;
+  late final Future initFuture;
+
+  @override
+  void initState() {
+    initFuture = _backgroundMusic.init().then((_) {
+      progressSubscription = _backgroundMusic.progressStream
+          .listen((p) => setState(() => progress = p));
+      stateSubscription =
+          _backgroundMusic.stateStream.listen((s) => setState(() => state = s));
+    });
+    super.initState();
+  }
+
+  @override
+  void dispose() {
+    _backgroundMusic.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+        icon: Icon(state == PlayerState.PLAYING
+            ? Icons.pause_rounded
+            : Icons.play_arrow_rounded),
+        iconSize: 40,
+        onPressed: () {
+          state == PlayerState.PLAYING
+              ? _backgroundMusic.pause()
+              : _backgroundMusic.play();
+        });
   }
 }
